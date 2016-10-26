@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+import sceneparser
+import imagewriter
+import raytracer
+import argparse
+import util
+import sys
+
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Ray trace your scene!')
+    parser.add_argument('-input',   type=str, required=True)
+    parser.add_argument('-output',  type=str, required=True)
+    parser.add_argument('-normals', type=str)
+    parser.add_argument('-shadows', action='store_true', default=False)
+    parser.add_argument('-bounces', type=int)
+    parser.add_argument('-depth',   type=util.str_int, nargs=3)
+    parser.add_argument('-size',    type=int, nargs=2, default=[200, 200])
+    args = parser.parse_args()
+
+    # Parse the scene file
+    sp = sceneparser.SceneParser(args.input)
+    scene = sp.parse()
+
+    # Initialize and run the ray tracer
+    t = raytracer.RayTracer(scene, args.size)
+    image_map = t.run()
+
+    # Write the output image
+    d = imagewriter.ImageDrawer(image_map)
+    d.draw(args.output)
+
