@@ -6,10 +6,17 @@ class SceneParser:
     def __init__(self, filename):
         self.filename = filename
         self.obj_stack = []
+        self.group_stack = []
+        self.lights_stack = []
         self.cur_material_index = None
-        # MaterialIndex is special because it sets the material of
-        # everything beneath it (until the next material index)
-        self.MATERIAL_INDEX = "MaterialIndex"
+        # Even though the parser supports multiple groups, multiple
+        # "lights"es, and multiple "materials"es, the raytracer currently
+        # only supports one of each of these.
+        self.group = None
+        self.lights = None
+        self.materials = None
+        self.camera = None
+        self.background = None
 
     def parse_int(self):
         res = int(self.splits[self.index])
@@ -36,43 +43,87 @@ class SceneParser:
     def parse_token(self):
         # Pull out the next token
         t = self.splits[self.index] 
-        # If it's an object
+        
         if t in OBJECT_PARSE:
             self.index += 1
             # The next character should always ben an opening curly brace
             assert(self.splits[self.index] == "{")
+
             # Skip the curly brace
             self.index += 1
+
             # Instantiate the object
             o = OBJECT_PARSE[t]()
+
             # Set the material if it's a scene object
             if isinstance(o, SceneObject):
                 o.set_material_index(self.cur_material_index)
+
+            # Add to the lights group if there is one
+            if len(self.lights_stack) > 0:
+                self.lights_stack[-1].add_light(o)
+
+            # Add to group if there is one
+            if len(self.group_stack) > 0:
+                self.group_stack[-1].add_object(o)
+
+            # Push onto the lights stack if we need to
+            if isinstance(o, Lights):
+                self.lights_stack.append(o)
+                self.lights = o
+
+            # Push onto the group stack if we need to
+            if isinstance(o, Group):
+                self.group_stack.append(o)
+                self.group = o
+
+            # We only support one root node each of the following objects
+            if isinstance(o, Materials):
+                assert(self.materials == None)
+                self.materials = o
+
+            if isinstance(o, Camera):
+                assert(self.camera == None)
+                self.camera = o
+
+            if isinstance(o, Background):
+                assert(self.background == None)
+                self.background = o
+
             # Push this guy onto the object stack
             self.obj_stack.append(o)
-            self.scene.add_object(o)
 
         elif t in ATTRIBUTE_PARSE:
             # Grab the function we need to fetch the attribute
             fetch_attribute = ATTRIBUTE_PARSE[t]
             self.index += 1
+
             # Fetch the attribute (increments self.index)
             attribute = fetch_attribute(self)
             set_attribute_name = ATTRIBUTE_SET[t]
+
             # Grab the current object on the stack
             context = self.obj_stack[-1]
             setter = getattr(context, set_attribute_name)
+
             # Set the attribute
             setter(attribute)
 
-        elif t == self.MATERIAL_INDEX:
+        elif t == MATERIAL_INDEX:
             self.index += 1
             self.cur_material_index = self.parse_int()
 
         elif t == "}":
             # Pop the current object off of the object stack
-            self.obj_stack.pop()
+            o = self.obj_stack.pop()
+            # if it was a lights, pop it off of the lights stack
+            if isinstance(o, Lights):
+                self.lights_stack.pop()
+            # if it was a group, pop it off of the group stack
+            if isinstance(o, Group):
+                self.group_stack.pop()
             self.index += 1
+
         else:
             print self.splits
             raise SyntaxError("Unexpected token: '{}' at index {}".format(t, self.index))
@@ -86,17 +137,24 @@ class SceneParser:
         smush = fins.replace("\r", " ").replace("\n", " ")
 
         # Parse out each component; types, floats, ints
-        splits = re.findall(r"[\w/\.]+|\{|\}", fins)
+        splits = re.findall(r"[\w/\.\-]+|\{|\}", fins)
 
         # Begin tokenizing
         self.index = 0
         self.splits = splits
-        self.scene = Scene()
 
         while self.index < len(self.splits):
             self.parse_token()
 
-        return self.scene
+        # Create a scene
+        s = Scene()
+        s.set_camera(self.camera)
+        s.set_lights(self.lights)
+        s.set_materials(self.materials)
+        s.set_background(self.background)
+        s.set_group(self.group)
+
+        return s
 
 # Maps object strings to object parsers
 OBJECT_PARSE = {
@@ -170,3 +228,8 @@ ATTRIBUTE_SET = {
     "offset": "set_offset",
     "cubeMap": "set_cube_map"
 }
+
+# MaterialIndex is special because it sets the material of
+# everything beneath it (until the next material index)
+MATERIAL_INDEX = "MaterialIndex"
+

@@ -1,10 +1,39 @@
-class Camera:
+from ctypes import *
+from vector import *
+
+# We need to set these to inform the C program about
+# what kind of thing we are
+
+# Light types
+POINT_LIGHT       = 0
+DIRECTIONAL_LIGHT = 1
+
+# SceneObject types
+SPHERE            = 0
+PLANE             = 1
+TRIANGLE_MESH     = 2
+
+# Camera types
+PERSPECTIVE_CAM   = 0
+
+# Material types
+MATERIAL          = 0
+PHONG_MATERIAL    = 1
+
+class Camera(Structure):
+    _fields_ = [("kind", c_int),
+                ("center", Vector3f),
+                ("direction", Vector3f),
+                ("up", Vector3f),
+                ("angle", c_float),
+                ("horizontal", Vector3f),
+                ("dist", c_float)]
     def __init__(self):
         pass
 
 class PerspectiveCamera(Camera):
     def __init__(self):
-        pass
+        self.kind = PERSPECTIVE_CAM
 
     def set_center(self, center):
         self.center = center
@@ -18,36 +47,29 @@ class PerspectiveCamera(Camera):
     def set_angle(self, angle):
         self.angle = angle
 
-class Light:
+class Light(Structure):
+    _fields_ = [("kind", c_int),
+                ("position", Vector3f),
+                ("color", Vector3f),
+                ("falloff", c_float),
+                ("direction", Vector3f)]
     def __init__(self):
         pass
-
-class TriangleMesh:
-    def __init__(self):
-        pass
-
-    def set_obj_file(self, obj_file):
-        self.obj_file = obj_file
 
 class Lights:
     def __init__(self):
         self.lights = []
-        self.index = 0
 
     def set_num_lights(self, num_lights):
         self.num_lights = num_lights
 
-    def add_light(self, lights):
-        self.lights.append(material)
-        self.index += 1
-
-    def get_light_by_index(self, index):
-        return lights[index]
-
+    def add_light(self, light):
+        assert(isinstance(light, Light))
+        self.lights.append(light)
 
 class PointLight(Light):
     def __init__(self):
-        pass
+        self.kind = POINT_LIGHT
 
     def set_position(self, position):
         self.position = position
@@ -60,7 +82,7 @@ class PointLight(Light):
 
 class DirectionalLight(Light):
     def __init__(self):
-        pass
+        self.kind = DIRECTIONAL_LIGHT
 
     def set_direction(self, direction):
         self.direction = direction
@@ -68,7 +90,10 @@ class DirectionalLight(Light):
     def set_color(self, color):
         self.color = color
 
-class Background:
+class Background(Structure):
+    _fields_ = [("color", Vector3f),
+                ("ambient_light", Vector3f),
+                ("cube_map", c_char_p)]
     def __init__(self):
         pass
 
@@ -81,7 +106,29 @@ class Background:
     def set_cube_map(self, cube_map):
         self.cube_map = cube_map
 
-class Transform:
+class SceneObject(Structure):
+    _fields_ = [("kind", c_int),
+                ("obj_file", c_char_p),
+                ("center", Vector3f),
+                ("radius", c_float),
+                ("normal", Vector3f),
+                ("offset", c_float),
+                ("material_index", c_int)]
+
+    def __init__(self):
+        pass
+
+    def set_material_index(self, material_index):
+        self.material_index = material_index
+
+# TODO: Implement Transform
+class Transform(SceneObject):
+#    _fields_ = [("translate", Vector3f),
+#                ("scale", Vector3f),
+#                ("material_index", c_int),
+#                ("z_rotate", c_float),
+#                ("y_rotate", c_float),
+#                ("x_rotate", c_float)]
     def __init__(self):
         pass
 
@@ -90,9 +137,6 @@ class Transform:
 
     def set_scale(self, scale):
         self.scale = scale
-
-    def set_mesh(self, mesh):
-        self.mesh = mesh
 
     def set_material_index(self, material_index):
         self.material_index = material_index
@@ -106,16 +150,16 @@ class Transform:
     def set_x_rotate(self, x_rotate):
         self.x_rotate = x_rotate
 
-class SceneObject:
+class TriangleMesh(SceneObject):
     def __init__(self):
-        pass
+        self.kind = TRIANGLE_MESH
 
-    def set_material_index(self, material_index):
-        self.material_index = material_index
+    def set_obj_file(self, obj_file):
+        self.obj_file = obj_file.encode("utf-8")
 
 class Sphere(SceneObject):
     def __init__(self):
-        pass
+        self.kind = SPHERE
 
     def set_center(self, center):
         self.center = center
@@ -125,7 +169,7 @@ class Sphere(SceneObject):
 
 class Plane(SceneObject):
     def __init__(self):
-        pass
+        self.kind = PLANE
 
     def set_normal(self, normal):
         self.normal = normal
@@ -136,36 +180,31 @@ class Plane(SceneObject):
 class Materials:
     def __init__(self):
         self.materials = []
-        self.index = 0
 
     def set_num_materials(self, num_materials):
         self.num_materials = num_materials
 
     def add_material(self, material):
+        assert(isinstance(material, Material))
         self.materials.append(material)
-        self.index += 1
 
-    def get_material_by_index(self, index):
-        return materials[index]
-
-class Group:
+class Group(Structure):
     def __init__(self):
         self.objects = []
-        self.index = 0
 
     def set_num_objects(self, num):
         self.num_objects = num
 
     def add_object(self, obj):
         self.objects.append(obj)
-        self.index += 1
 
-    def get_object_by_index(self, index):
-        return self.objects[index]
-
-class Material:
+class Material(Structure):
+    _fields_ = [("kind", c_int),
+                ("diffuse_color", Vector3f),
+                ("specular_color", Vector3f),
+                ("shininess", c_float)]
     def __init__(self):
-        pass
+        self.kind = MATERIAL
 
     def set_diffuse_color(self, color):
         self.diffuse_color = color
@@ -178,11 +217,23 @@ class Material:
 
 class PhongMaterial(Material):
     def __init__(self):
-        pass
+        self.kind = PHONG_MATERIAL
 
 class Scene:
     def __init__(self):
-        self.objects = []
+        pass
 
-    def add_object(self, obj):
-        self.objects.append(obj)
+    def set_camera(self, camera):
+        self.camera = camera
+
+    def set_group(self, group):
+        self.group = group
+
+    def set_lights(self, lights):
+        self.lights = lights
+
+    def set_materials(self, materials):
+        self.materials = materials
+
+    def set_background(self, background):
+        self.background = background

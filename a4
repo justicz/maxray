@@ -23,10 +23,10 @@ if __name__ == "__main__":
     scene = sp.parse()
 
     # Initialize and run the ray tracer
-    t = raytracer.RayTracer(scene, args.size)
+    t = raytracer.RayTracer(scene, args)
     image_map = t.run()
 
-    # Write the output image
-    d = imagewriter.ImageDrawer(image_map)
+    # Write the output image (image_map is 2d array of Vector3)
+    d = imagewriter.ImageDrawer(image_map, args.size)
     d.draw(args.output)
 
