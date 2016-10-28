@@ -7,11 +7,9 @@ class SceneParser:
         self.filename = filename
         self.obj_stack = []
         self.group_stack = []
-        self.lights_stack = []
-        self.cur_material_index = None
-        # Even though the parser supports multiple groups, multiple
-        # "lights"es, and multiple "materials"es, the raytracer currently
-        # only supports one of each of these.
+        self.cur_material_index = -1
+
+        # Scene attributes passed to ray.so
         self.group = None
         self.lights = None
         self.materials = None
@@ -59,25 +57,27 @@ class SceneParser:
             if isinstance(o, SceneObject):
                 o.set_material_index(self.cur_material_index)
 
-            # Add to the lights group if there is one
-            if len(self.lights_stack) > 0:
-                self.lights_stack[-1].add_light(o)
-
-            # Add to group if there is one
+            # Add ourselves to the group
             if len(self.group_stack) > 0:
-                self.group_stack[-1].add_object(o)
+                assert(isinstance(o, SceneObject))
+                self.group_stack[-1].add_child_object(o)
 
-            # Push onto the lights stack if we need to
+            # If we're a group, set the root group if necessary
+            if isinstance(o, Group):
+                if len(self.group_stack) == 0:
+                    assert(self.group == None)
+                    self.group = o
+                self.group_stack.append(o)
+
+            # Append ourselves to the root lights object
+            if isinstance(o, Light):
+                self.lights.add_light(o)
+
+            # We can only have one of each of the objects below here
             if isinstance(o, Lights):
-                self.lights_stack.append(o)
+                assert(self.lights == None)
                 self.lights = o
 
-            # Push onto the group stack if we need to
-            if isinstance(o, Group):
-                self.group_stack.append(o)
-                self.group = o
-
-            # We only support one root node each of the following objects
             if isinstance(o, Materials):
                 assert(self.materials == None)
                 self.materials = o
@@ -116,12 +116,21 @@ class SceneParser:
         elif t == "}":
             # Pop the current object off of the object stack
             o = self.obj_stack.pop()
-            # if it was a lights, pop it off of the lights stack
+
+            # Each of the following types can have children, an since we need
+            # to allocate space for pointers to the children we can only do
+            # that when we're sure there won't be more of them
+            if isinstance(o, SceneObject):
+                o.set_children_pointers()
+            if isinstance(o, Materials):
+                o.set_materials_pointers()
             if isinstance(o, Lights):
-                self.lights_stack.pop()
+                o.set_lights_pointers()
+
             # if it was a group, pop it off of the group stack
             if isinstance(o, Group):
                 self.group_stack.pop()
+
             self.index += 1
 
         else:
@@ -145,6 +154,12 @@ class SceneParser:
 
         while self.index < len(self.splits):
             self.parse_token()
+
+        assert(self.camera != None)
+        assert(self.lights != None)
+        assert(self.materials != None)
+        assert(self.background != None)
+        assert(self.group != None)
 
         # Create a scene
         s = Scene()
@@ -205,11 +220,11 @@ ATTRIBUTE_PARSE = {
 ATTRIBUTE_SET = {
     "numObjects": "set_num_objects",
     "numMaterials": "set_num_materials",
-    "Translate": "set_translate",
-    "Scale": "set_scale",
-    "XRotate": "set_x_rotate",
-    "YRotate": "set_y_rotate",
-    "ZRotate": "set_z_rotate",
+    "Translate": "apply_translation",
+    "Scale": "apply_scale",
+    "XRotate": "apply_x_rotation",
+    "YRotate": "apply_y_rotation",
+    "ZRotate": "apply_z_rotation",
     "numLights": "set_num_lights",
     "position": "set_position",
     "direction": "set_direction",

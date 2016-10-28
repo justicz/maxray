@@ -1,17 +1,17 @@
 #pragma once
+
 #include <stdint.h>
+#include "matrix4f.h"
 #include "vec3f.h"
 
-#define MAX_OBJ 1024
 #define EPSILON 0.05f
 
 struct Camera {
-    uint32_t kind;
+    int kind;
     Vector3f center;
     Vector3f direction;
     Vector3f up;
     float angle;
-    /* below here are not computed in python */
     Vector3f horizontal;
     float dist;
 };
@@ -29,25 +29,38 @@ struct Hit {
 };
 
 struct SceneObject {
-    uint32_t kind;
+    int kind;
     char *obj_file;
     Vector3f center;
     float radius;
     Vector3f normal;
     float offset;
-    uint32_t material_index;
+    int material_index;
+    struct SceneObject **children;
+    int num_children;
+    Matrix4f transform;
+};
+
+struct Lights {
+    int num_lights;
+    struct Light **lights;
 };
 
 struct Light {
-    uint32_t kind;
+    int kind;
     Vector3f position;
     Vector3f color;
     float falloff;
     Vector3f direction;
 };
 
+struct Materials {
+    int num_materials;
+    struct Material **materials;
+};
+
 struct Material {
-    uint32_t kind;
+    int kind;
     Vector3f diffuse_color;
     Vector3f specular_color;
     float shininess;
@@ -65,6 +78,14 @@ struct Background {
     char *cube_map;
 };
 
+struct Scene {
+    struct Camera camera;
+    struct SceneObject group;
+    struct Lights lights;
+    struct Materials materials;
+    struct Background background;
+};
+
 enum LIGHT {
     POINT_LIGHT,
     DIRECTIONAL_LIGHT
@@ -73,7 +94,9 @@ enum LIGHT {
 enum SCENEOBJECT {
     SPHERE,
     PLANE,
-    TRIANGLE_MESH
+    TRIANGLE_MESH,
+    GROUP,
+    TRANSFORM
 };
 
 enum CAMERA {
@@ -85,25 +108,9 @@ enum MAT {
     PHONG_MAT
 };
 
-extern struct Light *lights[MAX_OBJ];
-extern size_t num_lights;
+extern struct Scene scene;
+extern int size[2]; 
 
-extern struct SceneObject *scene_objects[MAX_OBJ];
-extern size_t num_scene_objects;
-
-extern struct Material *materials[MAX_OBJ];
-extern size_t num_materials;
-
-extern struct Background *background;
-extern struct Camera *camera;
-
-extern uint32_t size[2]; 
-
-void add_scene_object(struct SceneObject *scene_object);
-void camera_init(struct Camera *camera);
-void add_camera(struct Camera *camera);
-void add_light(struct Light *light);
-void add_material(struct Material *material);
-void add_background(struct Background *background);
-void set_size(uint32_t w, uint32_t h);
+void init_scene(struct Scene *sc);
+void set_size(int w, int h);
 

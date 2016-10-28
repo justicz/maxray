@@ -15,4 +15,5 @@ Vector3f vec3fprodf(Vector3f a, float b);
 Vector3f vec3fsum2(Vector3f a, Vector3f b);
 Vector3f vec3fsum3(Vector3f a, Vector3f b, Vector3f c);
 Vector3f vec3fsub(Vector3f a, Vector3f b);
+void print_vec3f(Vector3f a);
 

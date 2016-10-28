@@ -1,7 +1,13 @@
 #include <math.h>
+#include <stdio.h>
 #include "vec3f.h"
 
 const Vector3f ZERO_VEC3F = {0.0f, 0.0f, 0.0f};
+
+void print_vec3f(Vector3f a)
+{
+    printf("%f %f %f\n", a.x, a.y, a.z);
+}
 
 inline float vec3fdot(Vector3f a, Vector3f b)
 {

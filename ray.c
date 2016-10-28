@@ -8,11 +8,6 @@
 #include "load.h"
 #include "ray.h"
 
-void print_vec(Vector3f vec)
-{
-    printf("%f %f %f\n", vec.x, vec.y, vec.z);
-}
-
 void camera_ray(struct Camera *camera, float x, float y, struct Ray *camray)
 {
     assert(camera->kind == PERSPECTIVE_CAM);
@@ -68,14 +63,14 @@ void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct
         hit->norm = scene_object->normal;
         hit->dist = t;
         return;
-    } 
+    }
 }
 
 void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensity *intensity)
 {
-    if (!isfinite(hit->dist) && background)
+    if (!isfinite(hit->dist))
     {
-        intensity->intensity = background->color;
+        intensity->intensity = scene.background.color;
         intensity->dir = ZERO_VEC3F;
         intensity->dist = INFINITY;
     }
@@ -93,17 +88,25 @@ void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensi
     }
 }
 
-void find_closest_intersection(struct Ray ray, struct Hit *hit)
+void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit)
 {
     hit->dist = INFINITY;
     hit->norm = ZERO_VEC3F;
     hit->hit_coords = ZERO_VEC3F;
-    for (uint32_t i = 0; i < num_scene_objects; i++)
+
+    // If we don't have any children, just check for an intersection
+    if (root->num_children == 0)
+    {
+        intersect_with_ray(root, ray, hit);
+        return;
+    }
+
+    // If we do have children, find the best of all of our children
+    for (int32_t i = 0; i < root->num_children; i++)
     {
         struct Hit check;
-        struct SceneObject *scene_object = scene_objects[i];
-        intersect_with_ray(scene_object, ray, &check);
-        // Don't intersect with ourselves
+        struct SceneObject *scene_object = root->children[i];
+        find_closest_intersection(scene_object, ray, &check);
         if (check.dist < EPSILON)
         {
             continue;
@@ -112,15 +115,15 @@ void find_closest_intersection(struct Ray ray, struct Hit *hit)
         {
             *hit = check;
         }
-    }
+   }
 }
 
-void normalize_framebuffer(Vector3f **framebuffer, uint32_t w, uint32_t h)
+void normalize_framebuffer(Vector3f **framebuffer, int32_t w, int32_t h)
 {
     float max = 0;
-    for (uint32_t j = 0; j < h; j++)
+    for (int32_t j = 0; j < h; j++)
     {
-        for (uint32_t i = 0; i < w; i++)
+        for (int32_t i = 0; i < w; i++)
         {
             float abs = vec3fabs(framebuffer[i][j]);
             if (abs > max)
@@ -137,9 +140,9 @@ void normalize_framebuffer(Vector3f **framebuffer, uint32_t w, uint32_t h)
     }
 
     max = 255.0f / max;
-    for (uint32_t j = 0; j < h; j++)
+    for (int32_t j = 0; j < h; j++)
     {
-        for (uint32_t i = 0; i < w; i++)
+        for (int32_t i = 0; i < w; i++)
         {
             framebuffer[i][j] = vec3fprodf(framebuffer[i][j], max);
         }
@@ -149,7 +152,7 @@ void normalize_framebuffer(Vector3f **framebuffer, uint32_t w, uint32_t h)
 bool free_path(struct Ray shadow_ray)
 {
     struct Hit hit;
-    find_closest_intersection(shadow_ray, &hit);
+    find_closest_intersection(&scene.group, shadow_ray, &hit);
     return !isfinite(hit.dist);
 }
 
@@ -157,58 +160,61 @@ Vector3f solve_ray(struct Ray ray)
 {
     Vector3f pixel = {0.0f, 0.0f, 0.0f};
     struct Hit hit;
-    find_closest_intersection(ray, &hit);
+
+    // Grab the root scene object
+    assert(scene.group.num_children > 0);
+    find_closest_intersection(&scene.group, ray, &hit);
 
     if (isfinite(hit.dist)) {
-        for (uint32_t l = 0; l < num_lights; l++)
+        for (int32_t l = 0; l < scene.lights.num_lights; l++)
         {
             struct Ray shadow_ray;
             shadow_ray.o = hit.hit_coords;
-            shadow_ray.dir = vec3fnorm(vec3fsub(lights[l]->position, hit.hit_coords));
-            
+
+            shadow_ray.dir = vec3fnorm(vec3fsub((scene.lights.lights[0][l]).position, hit.hit_coords));
+           
             if (!free_path(shadow_ray))
             {
                 continue;
             }
 
             struct Intensity intensity;
-            light_intensity_at_hit(lights[l], &hit, &intensity);
+            light_intensity_at_hit(&((*scene.lights.lights)[l]), &hit, &intensity);
             pixel = vec3fsum2(pixel, intensity.intensity);
         }
     }
 
-    if (background)
-    {
-        pixel = vec3fsum2(pixel, background->ambient_light);
-    }
+    pixel = vec3fsum2(pixel, scene.background.ambient_light);
 
     return pixel;
 }
 
 Vector3f **raytrace()
 {
-    uint32_t horz_steps = size[0];
+    printf("C: In raytrace\n");
+
+    int32_t horz_steps = size[0];
     float horz_increment = 2.0f / horz_steps;
     float horz_pos = -1.0f;
 
-    uint32_t vert_steps = size[1];
+    int32_t vert_steps = size[1];
     float vert_decrement = 2.0f / vert_steps;
     float vert_pos = 1.0f;
 
     Vector3f **framebuffer = (Vector3f **)malloc(sizeof(Vector3f *) * size[0]);
-    for (uint32_t i = 0; i < size[0]; i++)
+    for (int32_t i = 0; i < size[0]; i++)
     {
-        uint32_t col_bytes = sizeof(Vector3f) * size[1];
+        int32_t col_bytes = sizeof(Vector3f) * size[1];
         framebuffer[i] = (Vector3f *)malloc(col_bytes);
         memset(framebuffer[i], 0, col_bytes);
     }
 
-    for (uint32_t j = 0; j < vert_steps; j++)
+    for (int32_t j = 0; j < vert_steps; j++)
     {
-        for (uint32_t i = 0; i < horz_steps; i++)
+        for (int32_t i = 0; i < horz_steps; i++)
         {
             struct Ray camray;
-            camera_ray(camera, horz_pos, vert_pos, &camray);
+            camera_ray(&scene.camera, horz_pos, vert_pos, &camray);
             framebuffer[i][j] = solve_ray(camray);
             horz_pos += horz_increment;
         }
@@ -217,6 +223,8 @@ Vector3f **raytrace()
     }
 
     normalize_framebuffer(framebuffer, horz_steps, vert_steps);
+
+    printf("C: Finished raytrace\n");
 
     return framebuffer;
 
