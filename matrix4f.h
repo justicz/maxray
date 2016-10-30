@@ -7,3 +7,6 @@ typedef struct {
     float m41; float m42; float m43; float m44;
 } Matrix4f;
 
+void print_matrix4f(Matrix4f a);
+Matrix4f matrix4ftransposed(Matrix4f a);
+

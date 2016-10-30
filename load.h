@@ -4,7 +4,7 @@
 #include "matrix4f.h"
 #include "vec3f.h"
 
-#define EPSILON 0.05f
+#define EPSILON 0.01f
 
 struct Camera {
     int kind;
@@ -39,6 +39,7 @@ struct SceneObject {
     struct SceneObject **children;
     int num_children;
     Matrix4f transform;
+    Matrix4f transform_inverse;
 };
 
 struct Lights {

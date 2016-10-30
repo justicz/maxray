@@ -125,12 +125,19 @@ class SceneObject(Structure):
                                   [0, 1, 0, 0],
                                   [0, 0, 1, 0],
                                   [0, 0, 0, 1])
+        self.transform_inverse = Matrix4f([1, 0, 0, 0],
+                                          [0, 1, 0, 0],
+                                          [0, 0, 1, 0],
+                                          [0, 0, 0, 1])
 
     def set_material_index(self, material_index):
         self.material_index = material_index
 
     def add_child_object(self, obj):
         assert(isinstance(obj, SceneObject))
+        # Children inherit their parent's transform
+        obj.transform = self.transform
+        obj.transform_inverse = self.transform_inverse
         self.p_children.append(obj)
 
     def set_children_pointers(self):
@@ -157,27 +164,48 @@ SceneObject._fields_ = [("kind", c_int),
                         ("material_index", c_int),
                         ("children", POINTER(POINTER(SceneObject))),
                         ("num_children", c_int),
-                        ("transform", Matrix4f)]
+                        ("transform", Matrix4f),
+                        ("transform_inverse", Matrix4f)]
 
 class Transform(SceneObject):
     def __init__(self):
         super(Transform, self).__init__()
         self.kind = TRANSFORM
 
-    def apply_translation(self, translate):
-        pass
+    def apply_translation(self, translation):
+        # object -> world
+        self.transform.apply_r(Matrix4fHelper.translation(translation))
+        # world -> object
+        rt = Vector3f(-translation.x, -translation.y, -translation.z)
+        self.transform_inverse.apply_l(Matrix4fHelper.translation(rt))
 
     def apply_scale(self, scale):
-        pass
+        # object -> world
+        self.transform.apply_r(Matrix4fHelper.scale(scale))
+        # world -> object
+        rs = Vector3f(1.0/scale.x, 1.0/scale.y, 1.0/scale.z)
+        self.transform_inverse.apply_l(Matrix4fHelper.scale(rs))
 
-    def apply_z_rotation(self, z_rotate):
-        pass
+    def apply_x_rotation(self, x_rotation):
+        # object -> world
+        rot = Matrix4fHelper.x_rotation(x_rotation)
+        self.transform.apply_r(rot)
+        # world -> object
+        self.transform_inverse.apply_l(Matrix4fHelper.transpose(rot))
 
-    def apply_y_rotation(self, y_rotate):
-        pass
+    def apply_y_rotation(self, y_rotation):
+        # object -> world
+        rot = Matrix4fHelper.y_rotation(y_rotation)
+        self.transform.apply_r(rot)
+        # world -> object
+        self.transform_inverse.apply_l(Matrix4fHelper.transpose(rot))
 
-    def apply_x_rotate(self, x_rotate):
-        pass
+    def apply_z_rotation(self, z_rotation):
+        # object -> world
+        rot = Matrix4fHelper.z_rotation(z_rotation)
+        self.transform.apply_r(rot)
+        # world -> object
+        self.transform_inverse.apply_l(Matrix4fHelper.transpose(rot))
 
 class TriangleMesh(SceneObject):
     def __init__(self):

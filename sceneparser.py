@@ -5,8 +5,8 @@ import re
 class SceneParser:
     def __init__(self, filename):
         self.filename = filename
+        self.all_stack = []
         self.obj_stack = []
-        self.group_stack = []
         self.cur_material_index = -1
 
         # Scene attributes passed to ray.so
@@ -56,27 +56,29 @@ class SceneParser:
             # Set the material if it's a scene object
             if isinstance(o, SceneObject):
                 o.set_material_index(self.cur_material_index)
+                # Add ourselves as a child of the last entry on the object stack
+                if len(self.obj_stack) > 0:
+                    self.obj_stack[-1].add_child_object(o)
+                # Add ourselves to the object stack
+                self.obj_stack.append(o)
 
-            # Add ourselves to the group
-            if len(self.group_stack) > 0:
-                assert(isinstance(o, SceneObject))
-                self.group_stack[-1].add_child_object(o)
-
-            # If we're a group, set the root group if necessary
-            if isinstance(o, Group):
-                if len(self.group_stack) == 0:
-                    assert(self.group == None)
-                    self.group = o
-                self.group_stack.append(o)
-
-            # Append ourselves to the root lights object
+            # If we're a light, append ourselves to the root lights object
             if isinstance(o, Light):
                 self.lights.add_light(o)
+
+            # If we're a material, append ourselves to the materials object
+            if isinstance(o, Material):
+                self.materials.add_material(o)
 
             # We can only have one of each of the objects below here
             if isinstance(o, Lights):
                 assert(self.lights == None)
                 self.lights = o
+
+            # If we're a group, set the root group if necessary
+            if isinstance(o, Group):
+                if (self.group == None):
+                    self.group = o
 
             if isinstance(o, Materials):
                 assert(self.materials == None)
@@ -91,7 +93,7 @@ class SceneParser:
                 self.background = o
 
             # Push this guy onto the object stack
-            self.obj_stack.append(o)
+            self.all_stack.append(o)
 
         elif t in ATTRIBUTE_PARSE:
             # Grab the function we need to fetch the attribute
@@ -103,7 +105,7 @@ class SceneParser:
             set_attribute_name = ATTRIBUTE_SET[t]
 
             # Grab the current object on the stack
-            context = self.obj_stack[-1]
+            context = self.all_stack[-1]
             setter = getattr(context, set_attribute_name)
 
             # Set the attribute
@@ -115,21 +117,18 @@ class SceneParser:
 
         elif t == "}":
             # Pop the current object off of the object stack
-            o = self.obj_stack.pop()
+            o = self.all_stack.pop()
 
             # Each of the following types can have children, an since we need
             # to allocate space for pointers to the children we can only do
             # that when we're sure there won't be more of them
             if isinstance(o, SceneObject):
+                assert(o == self.obj_stack.pop())
                 o.set_children_pointers()
             if isinstance(o, Materials):
                 o.set_materials_pointers()
             if isinstance(o, Lights):
                 o.set_lights_pointers()
-
-            # if it was a group, pop it off of the group stack
-            if isinstance(o, Group):
-                self.group_stack.pop()
 
             self.index += 1
 

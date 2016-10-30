@@ -6,7 +6,7 @@ const Vector3f ZERO_VEC3F = {0.0f, 0.0f, 0.0f};
 
 void print_vec3f(Vector3f a)
 {
-    printf("%f %f %f\n", a.x, a.y, a.z);
+    printf("Vector3f<%f %f %f>\n", a.x, a.y, a.z);
 }
 
 inline float vec3fdot(Vector3f a, Vector3f b)
@@ -14,7 +14,16 @@ inline float vec3fdot(Vector3f a, Vector3f b)
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-inline Vector3f vec3fsub(Vector3f a, Vector3f b)
+inline Vector3f vec3fhad(Vector3f a, Vector3f b)
+{
+    Vector3f v;
+    v.x = a.x * b.x;
+    v.y = a.y * b.y;
+    v.z = a.z * b.z;
+    return v;
+}
+
+Vector3f vec3fsub(Vector3f a, Vector3f b)
 {
     Vector3f v;
     v.x = a.x - b.x;
@@ -59,7 +68,7 @@ inline Vector3f vec3fcross(Vector3f a, Vector3f b)
     return v;
 }
 
-inline float vec3fabs(Vector3f a)
+float vec3fabs(Vector3f a)
 {
     return sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
 }
