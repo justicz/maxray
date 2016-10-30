@@ -222,8 +222,8 @@ void average_normals(struct SceneObject *root)
     {
         for (int i = 0; i < root->num_mesh_vertices; i++)
         {
-            root->mesh_normals[i] = vec3fprodf(root->mesh_normals[i],
-                                               1.0f/root->vertex_degrees[i]);
+            root->mesh_normals[i] = vec3fprodf(root->mesh_normals[i], 1.0f/root->vertex_degrees[i]);
+            root->mesh_normals[i] = vec3fnorm(root->mesh_normals[i]);
         }
         return;
     }
