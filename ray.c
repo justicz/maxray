@@ -242,7 +242,7 @@ void precompute_smooth_normals(struct SceneObject *root)
 }
 
 
-void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit)
+void find_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit, bool closest)
 {
     hit->dist = INFINITY;
     hit->norm = ZERO_VEC3F;
@@ -274,7 +274,7 @@ void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct 
     {
         struct Hit check;
         struct SceneObject *scene_object = root->children[i];
-        find_closest_intersection(scene_object, ray, &check);
+        find_intersection(scene_object, ray, &check, closest);
         if (check.dist < EPSILON)
         {
             continue;
@@ -282,14 +282,28 @@ void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct 
         if (check.dist < hit->dist)
         {
             *hit = check;
+            if (!closest)
+            {
+                return;
+            }
         }
     }
+}
+
+void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit)
+{
+    find_intersection(root, ray, hit, true);
+}
+
+void find_any_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit)
+{
+    find_intersection(root, ray, hit, false);
 }
 
 bool free_path(struct Ray shadow_ray)
 {
     struct Hit hit;
-    find_closest_intersection(&scene.group, shadow_ray, &hit);
+    find_any_intersection(&scene.group, shadow_ray, &hit);
     return !isfinite(hit.dist);
 }
 
