@@ -18,6 +18,9 @@ if __name__ == "__main__":
     parser.add_argument('-size',    type=int, nargs=2, default=[200, 200])
     args = parser.parse_args()
 
+    print "#"*80
+    print args.input
+
     # Parse the scene file
     sp = sceneparser.SceneParser(args.input)
     scene = sp.parse()

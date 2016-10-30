@@ -1,6 +1,7 @@
 from ctypes import *
 from vector import *
 from matrix import *
+import objparser
 
 # We need to set these to inform the C program about
 # what kind of thing we are
@@ -15,6 +16,7 @@ PLANE             = 1
 TRIANGLE_MESH     = 2
 GROUP             = 3
 TRANSFORM         = 4
+TRIANGLE          = 5
 
 # Camera types
 PERSPECTIVE_CAM   = 0
@@ -164,6 +166,12 @@ SceneObject._fields_ = [("kind", c_int),
                         ("material_index", c_int),
                         ("children", POINTER(POINTER(SceneObject))),
                         ("num_children", c_int),
+                        ("face", c_int*3),
+                        ("parent_mesh", POINTER(SceneObject)),
+                        ("mesh_normals", POINTER(Vector3f)),
+                        ("mesh_vertices", POINTER(Vector3f)),
+                        ("vertex_degrees", POINTER(c_int)),
+                        ("num_mesh_vertices", c_int),
                         ("transform", Matrix4f),
                         ("transform_inverse", Matrix4f)]
 
@@ -214,6 +222,45 @@ class TriangleMesh(SceneObject):
 
     def set_obj_file(self, obj_file):
         self.obj_file = obj_file.encode("utf-8")
+        self.obj = objparser.ObjectFile(self.prefix + "/" + obj_file)
+        for face in self.obj.face_indices:
+            self.add_child_object(Triangle(face, self.material_index, self))
+
+        self.num_mesh_vertices = len(self.obj.vertices)
+        self.mv = (Vector3f * self.num_mesh_vertices)()
+        self.mesh_vertices = cast(pointer(self.mv), POINTER(Vector3f))
+
+        # Initialize the vertices
+        for i in range(self.num_mesh_vertices):
+            self.mesh_vertices[i] = self.obj.vertices[i]
+
+        self.mn = (Vector3f * self.num_mesh_vertices)()
+        self.mesh_normals = cast(pointer(self.mn), POINTER(Vector3f))
+
+        # Zero out the mesh normals (to be computed in c)
+        for i in range(self.num_mesh_vertices):
+            self.mesh_normals[i] = Vector3f(0, 0, 0)
+
+        self.dg = (c_int * self.num_mesh_vertices)()
+        self.vertex_degrees = cast(pointer(self.dg), POINTER(c_int))
+        for i in range(self.num_mesh_vertices):
+            self.vertex_degrees[i] = 0
+
+    def set_prefix(self, prefix):
+        self.prefix = prefix
+
+class Triangle(SceneObject):
+    def __init__(self, face, material_index, parent):
+        super(Triangle, self).__init__()
+        self.kind = TRIANGLE
+        self.material_index = material_index
+        # We have to keep a pointer back to our parent so that we can grab
+        # the value o feach vertex
+        self.parent_mesh = cast(pointer(parent), POINTER(SceneObject))
+
+        # Make sure face doesn't get garbage collected
+        for i in range(3):
+            self.face[i] = face[i]
 
 class Sphere(SceneObject):
     def __init__(self):

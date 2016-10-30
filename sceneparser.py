@@ -1,6 +1,6 @@
 from scenetypes import *
 from vector import *
-import re
+import re, os
  
 class SceneParser:
     def __init__(self, filename):
@@ -65,6 +65,11 @@ class SceneParser:
             # If we're a light, append ourselves to the root lights object
             if isinstance(o, Light):
                 self.lights.add_light(o)
+
+            # This is kind of a hack because meshes are at a path relative to the scene file
+            if isinstance(o, TriangleMesh):
+                prefix = os.path.dirname(os.path.abspath(self.filename))
+                o.set_prefix(prefix)
 
             # If we're a material, append ourselves to the materials object
             if isinstance(o, Material):

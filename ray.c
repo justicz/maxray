@@ -95,6 +95,10 @@ void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct
     else if (scene_object->kind == PLANE)
     {
         float t = vec3fdot(scene_object->normal, ray.dir);
+        // No intersection if the ray is parallel to the plane
+        if (t == 0.0f) {
+            return;
+        }
         t = (scene_object->offset - vec3fdot(ray.o, scene_object->normal)) / t;
         if (t < 0.0f) {
             return;
@@ -105,39 +109,138 @@ void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct
         hit->dist = t;
         return;
     }
-    else if (scene_object->kind == TRIANGLE_MESH)
+    else if (scene_object->kind == TRIANGLE)
     {
-    }
-    else {
+        struct SceneObject *parent = scene_object->parent_mesh;
+        assert(parent->kind == TRIANGLE_MESH);
+
+        // First we compute the supporting plane
+        Vector3f A = parent->mesh_vertices[scene_object->face[0]];
+        Vector3f B = parent->mesh_vertices[scene_object->face[1]];
+        Vector3f C = parent->mesh_vertices[scene_object->face[2]];
+
+        Vector3f E0 = vec3fsub(B, A);
+        Vector3f E1 = vec3fsub(C, A);
+        Vector3f n = vec3fnorm(vec3fcross(E0, E1));
+        float offset = vec3fdot(n, A);
+
+        float t = vec3fdot(n, ray.dir);
+        if (t == 0.0f) {
+            return;
+        }
+        t = (offset - vec3fdot(ray.o, n)) / t;
+        if (t < 0.0f) {
+            return;
+        }
+        // Q is the intersection with the supporting plane
+        Vector3f Q = vec3fsum2(ray.o, vec3fprodf(ray.dir, t));
+
+        // Check if we're outside any of the edges
+        float e0, e1, e2;
+
+        Vector3f CMB = vec3fsub(C, B);
+        Vector3f QMB = vec3fsub(Q, B);
+        Vector3f CMB_QMB = vec3fcross(CMB, QMB);
+        if ((e0 = vec3fdot(CMB_QMB, n)) < 0.0f) {
+            return;
+        }
+
+        Vector3f AMC = vec3fsub(A, C);
+        Vector3f QMC = vec3fsub(Q, C);
+        Vector3f AMC_QMC = vec3fcross(AMC, QMC);
+        if ((e1 = vec3fdot(AMC_QMC, n)) < 0.0f) {
+            return;
+        }
+
+        Vector3f BMA = vec3fsub(B, A);
+        Vector3f QMA = vec3fsub(Q, A);
+        Vector3f BMA_QMA = vec3fcross(BMA, QMA);
+        if ((e2 = vec3fdot(BMA_QMA, n)) < 0.0f) {
+            return;
+        }
+
+        float BMA_CMA_n = vec3fdot(vec3fcross(BMA, vec3fprodf(AMC, -1.0f)), n);
+
+        float alpha = e0 / BMA_CMA_n;
+        float beta  = e1 / BMA_CMA_n;
+        float gamma = e2 / BMA_CMA_n;
+
+        Vector3f normA = parent->mesh_normals[scene_object->face[0]];
+        Vector3f normB = parent->mesh_normals[scene_object->face[1]];
+        Vector3f normC = parent->mesh_normals[scene_object->face[2]];
+
+        Vector3f lerp = vec3fnorm(vec3fsum3(vec3fprodf(normA, alpha),
+                                            vec3fprodf(normB, beta),
+                                            vec3fprodf(normC, gamma)));
+
+        // We're inside the triangle!
+        hit->scene_object = scene_object;
+        hit->hit_coords = Q;
+        hit->norm = lerp;
+        hit->dist = t;
     }
 }
 
-void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensity *intensity)
+
+void sum_normals(struct SceneObject *root)
 {
-    if (!isfinite(hit->dist))
+    if (root->kind == TRIANGLE_MESH)
     {
-        intensity->intensity = ZERO_VEC3F;
-        intensity->dir = ZERO_VEC3F;
-        intensity->dist = INFINITY;
+        for (int32_t i = 0; i < root->num_children; i++)
+        {
+            struct SceneObject *triangle = root->children[i];
+            assert(triangle->kind == TRIANGLE);
+
+            // Compute the normal of the supporting plane
+            int *t = triangle->face;
+            Vector3f A = root->mesh_vertices[t[0]];
+            Vector3f B = root->mesh_vertices[t[1]];
+            Vector3f C = root->mesh_vertices[t[2]];
+            Vector3f E0 = vec3fsub(B, A);
+            Vector3f E1 = vec3fsub(C, A);
+            Vector3f n = vec3fnorm(vec3fcross(E0, E1));
+
+            for (int32_t t = 0; t < 3; t++)
+            {
+                Vector3f old = root->mesh_normals[triangle->face[t]];
+                root->mesh_normals[triangle->face[t]] = vec3fsum2(old, n);
+                root->vertex_degrees[triangle->face[t]]++;
+            }
+        }
         return;
     }
-    if (light->kind == POINT_LIGHT)
+    for (int32_t i = 0; i < root->num_children; i++)
     {
-        Vector3f diff = vec3fsub(light->position, hit->hit_coords);
-        intensity->dir = vec3fnorm(diff);
-        intensity->dist = vec3fabs(diff);
-        float factor = 1.0f/(intensity->dist*intensity->dist*light->falloff);
-        intensity->intensity = vec3fprodf(light->color, factor);
-        return;
-    }
-    else if (light->kind == DIRECTIONAL_LIGHT)
-    {
-        intensity->dir = vec3fprodf(vec3fnorm(light->direction), -1.0f);
-        intensity->dist = INFINITY;
-        intensity->intensity = light->color;
-        return;
+        struct SceneObject *scene_object = root->children[i];
+        sum_normals(scene_object);
     }
 }
+
+void average_normals(struct SceneObject *root)
+{
+    if (root->kind == TRIANGLE_MESH)
+    {
+        for (int i = 0; i < root->num_mesh_vertices; i++)
+        {
+            root->mesh_normals[i] = vec3fprodf(root->mesh_normals[i],
+                                               1.0f/root->vertex_degrees[i]);
+        }
+        return;
+    }
+
+    for (int32_t i = 0; i < root->num_children; i++)
+    {
+        struct SceneObject *scene_object = root->children[i];
+        average_normals(scene_object);
+    }
+}
+
+void precompute_smooth_normals(struct SceneObject *root)
+{
+    sum_normals(root);
+    average_normals(root);
+}
+
 
 void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit)
 {
@@ -180,8 +283,61 @@ void find_closest_intersection(struct SceneObject *root, struct Ray ray, struct 
         {
             *hit = check;
         }
-   }
+    }
 }
+
+bool free_path(struct Ray shadow_ray)
+{
+    struct Hit hit;
+    find_closest_intersection(&scene.group, shadow_ray, &hit);
+    return !isfinite(hit.dist);
+}
+
+void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensity *intensity)
+{
+    struct Ray shadow_ray;
+    bool in_shadow;
+
+    intensity->intensity = ZERO_VEC3F;
+    intensity->dir = ZERO_VEC3F;
+    intensity->dist = INFINITY;
+
+    if (!isfinite(hit->dist))
+    {
+        return;
+    }
+
+    if (light->kind == POINT_LIGHT)
+    {
+        shadow_ray.o = hit->hit_coords;
+        shadow_ray.dir = vec3fnorm(vec3fsub(light->position, hit->hit_coords));
+        in_shadow = !free_path(shadow_ray);
+        if (!in_shadow)
+        {
+            Vector3f diff = vec3fsub(light->position, hit->hit_coords);
+            intensity->dir = vec3fnorm(diff);
+            intensity->dist = vec3fabs(diff);
+            float factor = 1.0f/(intensity->dist*intensity->dist*light->falloff);
+            intensity->intensity = vec3fprodf(light->color, factor);
+        }
+    }
+    else if (light->kind == DIRECTIONAL_LIGHT)
+    {
+        Vector3f cam_to_light = vec3fnorm(vec3fprodf(light->direction, -1.0f));
+
+        shadow_ray.o = hit->hit_coords;
+        shadow_ray.dir = cam_to_light;
+        in_shadow = !free_path(shadow_ray);
+
+        if (!in_shadow)
+        {
+            intensity->dir = cam_to_light;
+            intensity->dist = INFINITY;
+            intensity->intensity = light->color;
+        }
+    }
+}
+
 
 float min(float a, float b) {
     return a < b ? a : b;
@@ -201,45 +357,42 @@ void normalize_framebuffer(Vector3f **framebuffer, int32_t w, int32_t h)
     }
 }
 
-bool free_path(struct Ray shadow_ray)
-{
-    struct Hit hit;
-    find_closest_intersection(&scene.group, shadow_ray, &hit);
-    return !isfinite(hit.dist);
-}
-
-Vector3f shade(struct Hit *hit, struct Intensity *intensity, bool in_shadow)
+Vector3f shade(struct Hit *hit, struct Intensity *intensity)
 {
     int32_t material_index = hit->scene_object->material_index;
     assert(material_index < scene.materials.num_materials);
     struct Material *material = scene.materials.materials[material_index];
 
-    // Ambient part
-    Vector3f color = vec3fhad(material->diffuse_color, scene.background.ambient_light);
+    Vector3f color = {0.0f, 0.0f, 0.0f};
 
-    if (!in_shadow)
-    {
-        // Diffuse part
-        float dot = vec3fdot(hit->norm, intensity->dir);
-        dot = dot > 0.0f ? dot : 0.0f;
+    // Diffuse part
+    float dot = vec3fdot(hit->norm, intensity->dir);
+    dot = dot > 0.0f ? dot : 0.0f;
 
-        Vector3f diffuse_color = vec3fprodf(material->diffuse_color, dot);
-        diffuse_color = vec3fhad(diffuse_color, intensity->intensity);
-        color = vec3fsum2(color, diffuse_color);
+    Vector3f diffuse_color = vec3fprodf(material->diffuse_color, dot);
+    diffuse_color = vec3fhad(diffuse_color, intensity->intensity);
+    color = vec3fsum2(color, diffuse_color);
 
-        // Specular part
-        Vector3f eye_vec = vec3fnorm(vec3fsub(hit->hit_coords, scene.camera.center));
-        Vector3f ref_eye = vec3fsub(eye_vec, vec3fprodf(hit->norm, 2*vec3fdot(eye_vec, hit->norm)));
-        dot = vec3fdot(ref_eye, intensity->dir);
-        dot = dot > 0.0f ? dot : 0.0f;
-        dot = pow(dot, material->shininess);
+    // Specular part
+    Vector3f eye_vec = vec3fnorm(vec3fsub(hit->hit_coords, scene.camera.center));
+    Vector3f ref_eye = vec3fsub(eye_vec, vec3fprodf(hit->norm, 2*vec3fdot(eye_vec, hit->norm)));
+    dot = vec3fdot(ref_eye, intensity->dir);
+    dot = dot > 0.0f ? dot : 0.0f;
+    dot = pow(dot, material->shininess);
 
-        Vector3f spec_color = vec3fprodf(material->specular_color, dot);
-        spec_color = vec3fhad(spec_color, intensity->intensity);
-        color = vec3fsum2(color, spec_color);
-    }
+    Vector3f spec_color = vec3fprodf(material->specular_color, dot);
+    spec_color = vec3fhad(spec_color, intensity->intensity);
+    color = vec3fsum2(color, spec_color);
 
     return color;
+}
+
+Vector3f shade_ambient(struct Hit *hit)
+{
+    int32_t material_index = hit->scene_object->material_index;
+    assert(material_index < scene.materials.num_materials);
+    struct Material *material = scene.materials.materials[material_index];
+    return vec3fhad(material->diffuse_color, scene.background.ambient_light);
 }
 
 Vector3f solve_ray(struct Ray ray)
@@ -255,16 +408,16 @@ Vector3f solve_ray(struct Ray ray)
     {
         for (int32_t l = 0; l < scene.lights.num_lights; l++)
         {
-            struct Ray shadow_ray;
-            shadow_ray.o = hit.hit_coords;
-            shadow_ray.dir = vec3fnorm(vec3fsub(scene.lights.lights[l]->position, hit.hit_coords));
-            bool in_shadow = !free_path(shadow_ray);
-
             struct Intensity intensity;
+            // Find the light intensity
             light_intensity_at_hit(scene.lights.lights[l], &hit, &intensity);
-            pixel = shade(&hit, &intensity, in_shadow);
+            // Shade the pixel with the light
+            pixel = vec3fsum2(pixel, shade(&hit, &intensity));
         }
+        // Add in the ambient component
+        pixel = vec3fsum2(pixel, shade_ambient(&hit));
     }
+
     else
     {
         pixel = scene.background.color;
@@ -276,6 +429,10 @@ Vector3f solve_ray(struct Ray ray)
 Vector3f **raytrace()
 {
     printf("C: In raytrace\n");
+
+    printf("C: Precomputing smooth normals...\n");
+    precompute_smooth_normals(&scene.group);
+    printf("C: ...done. Running raytrace... \n");
 
     int32_t horz_steps = size[0];
     float horz_increment = 2.0f / horz_steps;
@@ -308,7 +465,7 @@ Vector3f **raytrace()
 
     normalize_framebuffer(framebuffer, horz_steps, vert_steps);
 
-    printf("C: Finished raytrace\n");
+    printf("C: ...done\n");
 
     return framebuffer;
 

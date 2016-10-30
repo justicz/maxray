@@ -4,7 +4,7 @@
 #include "matrix4f.h"
 #include "vec3f.h"
 
-#define EPSILON 0.01f
+#define EPSILON 0.001f
 
 struct Camera {
     int kind;
@@ -38,6 +38,12 @@ struct SceneObject {
     int material_index;
     struct SceneObject **children;
     int num_children;
+    int face[3];
+    struct SceneObject *parent_mesh;
+    Vector3f *mesh_normals;
+    Vector3f *mesh_vertices;
+    int *vertex_degrees;
+    int num_mesh_vertices;
     Matrix4f transform;
     Matrix4f transform_inverse;
 };
@@ -97,7 +103,8 @@ enum SCENEOBJECT {
     PLANE,
     TRIANGLE_MESH,
     GROUP,
-    TRANSFORM
+    TRANSFORM,
+    TRIANGLE
 };
 
 enum CAMERA {
