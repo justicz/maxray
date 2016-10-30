@@ -22,7 +22,7 @@ if __name__ == "__main__":
     print args.input
 
     # Parse the scene file
-    sp = sceneparser.SceneParser(args.input)
+    sp = sceneparser.SceneParser(args)
     scene = sp.parse()
 
     # Initialize and run the ray tracer

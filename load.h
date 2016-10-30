@@ -1,6 +1,6 @@
 #pragma once
-
 #include <stdint.h>
+#include <stdbool.h>
 #include "matrix4f.h"
 #include "vec3f.h"
 
@@ -91,6 +91,7 @@ struct Scene {
     struct Lights lights;
     struct Materials materials;
     struct Background background;
+    bool shadows;
 };
 
 enum LIGHT {

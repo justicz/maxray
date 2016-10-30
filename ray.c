@@ -300,8 +300,13 @@ void find_any_intersection(struct SceneObject *root, struct Ray ray, struct Hit 
     find_intersection(root, ray, hit, false);
 }
 
-bool free_path(struct Ray shadow_ray)
+bool free_shadow_path(struct Ray shadow_ray)
 {
+    // Check if shadows are enabled
+    if (!scene.shadows)
+    {
+        return true;
+    }
     struct Hit hit;
     find_any_intersection(&scene.group, shadow_ray, &hit);
     return !isfinite(hit.dist);
@@ -325,7 +330,7 @@ void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensi
     {
         shadow_ray.o = hit->hit_coords;
         shadow_ray.dir = vec3fnorm(vec3fsub(light->position, hit->hit_coords));
-        in_shadow = !free_path(shadow_ray);
+        in_shadow = !free_shadow_path(shadow_ray);
         if (!in_shadow)
         {
             Vector3f diff = vec3fsub(light->position, hit->hit_coords);
@@ -341,7 +346,7 @@ void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensi
 
         shadow_ray.o = hit->hit_coords;
         shadow_ray.dir = cam_to_light;
-        in_shadow = !free_path(shadow_ray);
+        in_shadow = !free_shadow_path(shadow_ray);
 
         if (!in_shadow)
         {

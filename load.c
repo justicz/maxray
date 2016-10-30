@@ -19,15 +19,10 @@ void camera_init(struct Camera *cam)
 {
     if (cam->kind == PERSPECTIVE_CAM)
     {
-        //printf("Got perspective camera\n");
         cam->up = vec3fnorm(cam->up);
         cam->direction = vec3fnorm(cam->direction);
         cam->horizontal = vec3fnorm(vec3fcross(cam->direction, cam->up));
         cam->dist = 1.0f / tan(to_rad(cam->angle)/2.0f);
-        //printf("\t up: \t"); print_vec3f(cam->up);
-        //printf("\t dir: \t"); print_vec3f(cam->direction);
-        //printf("\t hor: \t"); print_vec3f(cam->horizontal);
-        //printf("\t dst: \t%f\n", cam->dist);
     }
 }
 

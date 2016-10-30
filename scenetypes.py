@@ -338,7 +338,11 @@ class Scene(Structure):
                 ("group", Group),
                 ("lights", Lights),
                 ("materials", Materials),
-                ("background", Background)]
+                ("background", Background),
+                ("shadows", c_bool)]
+
+    def set_shadows(self, shadows):
+        self.shadows = shadows
 
     def set_camera(self, camera):
         self.camera = camera

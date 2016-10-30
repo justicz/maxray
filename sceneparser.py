@@ -3,8 +3,9 @@ from vector import *
 import re, os
  
 class SceneParser:
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, args):
+        self.args = args
+        self.filename = args.input
         self.all_stack = []
         self.obj_stack = []
         self.cur_material_index = -1
@@ -172,6 +173,7 @@ class SceneParser:
         s.set_materials(self.materials)
         s.set_background(self.background)
         s.set_group(self.group)
+        s.set_shadows(self.args.shadows)
 
         return s
 
