@@ -4,7 +4,7 @@
 #include "matrix4f.h"
 #include "vec3f.h"
 
-#define EPSILON 0.001f
+#define EPSILON 0.01f
 
 struct Camera {
     int kind;

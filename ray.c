@@ -448,14 +448,6 @@ Vector3f **raytrace()
     precompute_smooth_normals(&scene.group);
     printf("C: ...done. Running raytrace... \n");
 
-    int32_t horz_steps = size[0];
-    float horz_increment = 2.0f / horz_steps;
-    float horz_pos = -1.0f;
-
-    int32_t vert_steps = size[1];
-    float vert_decrement = 2.0f / vert_steps;
-    float vert_pos = 1.0f;
-
     Vector3f **framebuffer = (Vector3f **)malloc(sizeof(Vector3f *) * size[0]);
     for (int32_t i = 0; i < size[0]; i++)
     {
@@ -464,17 +456,22 @@ Vector3f **raytrace()
         memset(framebuffer[i], 0, col_bytes);
     }
 
+    int32_t horz_steps = size[0];
+    float horz_increment = 2.0f / horz_steps;
+    int32_t vert_steps = size[1];
+    float vert_increment = 2.0f / vert_steps;
+
+    #pragma omp parallel for
     for (int32_t j = 0; j < vert_steps; j++)
     {
         for (int32_t i = 0; i < horz_steps; i++)
         {
             struct Ray camray;
-            camera_ray(&scene.camera, horz_pos, vert_pos, &camray);
+            float horz = -1.0f + i*horz_increment;
+            float vert = 1.0f - j*vert_increment;
+            camera_ray(&scene.camera, horz, vert, &camray);
             framebuffer[i][j] = solve_ray(camray);
-            horz_pos += horz_increment;
         }
-        horz_pos = -1.0f;
-        vert_pos -= vert_decrement;
     }
 
     normalize_framebuffer(framebuffer, horz_steps, vert_steps);
