@@ -227,7 +227,7 @@ void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct
         }
         hit->scene_object = scene_object;
         hit->hit_coords = vec3fsum2(ray.o, vec3fprodf(ray.dir, t));
-        hit->norm = scene_object->normal;
+        hit->norm = vec3fnorm(scene_object->normal);
         hit->dist = t;
         return;
     }
@@ -464,15 +464,15 @@ void light_intensity_at_hit(struct Light *light, struct Hit *hit, struct Intensi
     }
     else if (light->kind == DIRECTIONAL_LIGHT)
     {
-        Vector3f cam_to_light = vec3fnorm(vec3fprodf(light->direction, -1.0f));
+        Vector3f point_to_light = vec3fnorm(vec3fprodf(light->direction, -1.0f));
 
         shadow_ray.o = hit->hit_coords;
-        shadow_ray.dir = cam_to_light;
+        shadow_ray.dir = point_to_light;
         in_shadow = !free_shadow_path(shadow_ray);
 
         if (!in_shadow)
         {
-            intensity->dir = cam_to_light;
+            intensity->dir = point_to_light;
             intensity->dist = INFINITY;
             intensity->intensity = light->color;
         }
@@ -485,7 +485,7 @@ void normalize_framebuffer(Vector3f **framebuffer, int32_t w, int32_t h)
     {
         for (int32_t i = 0; i < w; i++)
         {
-            framebuffer[i][j]   = vec3fprodf(framebuffer[i][j], 255.0f);
+            framebuffer[i][j]   = vec3fprodf(framebuffer[i][j],  255.0f);
             framebuffer[i][j].x = minf(framebuffer[i][j].x,      255.0f);
             framebuffer[i][j].y = minf(framebuffer[i][j].y,      255.0f);
             framebuffer[i][j].z = minf(framebuffer[i][j].z,      255.0f);
@@ -500,7 +500,7 @@ struct Material *get_material_from_scene_object(struct SceneObject *scene_object
     return scene.materials.materials[material_index];
 }
 
-Vector3f shade(struct Hit *hit, struct Intensity *intensity)
+Vector3f shade(struct Hit *hit, struct Ray *ray, struct Intensity *intensity)
 {
     struct Material *material = get_material_from_scene_object(hit->scene_object);
 
@@ -515,7 +515,8 @@ Vector3f shade(struct Hit *hit, struct Intensity *intensity)
     color = vec3fsum2(color, diffuse_color);
 
     // Specular part
-    Vector3f eye_vec = vec3fnorm(vec3fsub(hit->hit_coords, scene.camera.center));
+    //Vector3f eye_vec = vec3fnorm(vec3fsub(hit->hit_coords, scene.camera.center));
+    Vector3f eye_vec = ray->dir;
     Vector3f ref_eye = vec3fsub(eye_vec, vec3fprodf(hit->norm, 2.0f*vec3fdot(eye_vec, hit->norm)));
     dot = vec3fdot(ref_eye, intensity->dir);
     dot = dot > 0.0f ? dot : 0.0f;
@@ -551,7 +552,7 @@ Vector3f solve_ray(struct Ray ray, int bounces)
             // Find the light intensity
             light_intensity_at_hit(scene.lights.lights[l], &hit, &intensity);
             // Shade the pixel with the light
-            pixel = vec3fsum2(pixel, shade(&hit, &intensity));
+            pixel = vec3fsum2(pixel, shade(&hit, &ray, &intensity));
         }
         // Add in the ambient component
         pixel = vec3fsum2(pixel, shade_ambient(&hit));
