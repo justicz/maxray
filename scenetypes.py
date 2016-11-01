@@ -145,7 +145,7 @@ class Background(Structure):
             self.save.append(cols)
             faces[f] = cast(pointer(cols), POINTER(POINTER(Vector3f)))
         self.skybox = cast(pointer(faces), POINTER(POINTER(POINTER(Vector3f))))
-        print "...done"
+        print "Python: ...done"
 
 class SceneObject(Structure):
     def __init__(self):

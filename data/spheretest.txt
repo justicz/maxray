@@ -32,10 +32,9 @@ Group {
     numObjects 1
     MaterialIndex 0
     Transform {
-        Scale 2 0.4 2
         Sphere {
         center 0 0 0 
-            radius 4 
+            radius 2
         }
     }
 }
