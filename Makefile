@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -fPIC -Wall -Wextra -O2 -std=c99 -fopenmp
-LDFLAGS = -shared -fopenmp
+CFLAGS = -fPIC -Wall -flto -Wextra -O3 -std=c99 -fopenmp
+LDFLAGS = -shared -fopenmp -flto
 TARGET_LIB = ray.so
 
 SRCS = ray.c load.c vec3f.c matrix4f.c
@@ -11,4 +11,8 @@ $(TARGET_LIB): $(OBJS)
 
 $(SRCS:.c=.d):%.d:%.c
 	$(CC) $(CFLAGS) -MM $< >$@
+
+.PHONY: clean
+clean:
+	rm *.o
 

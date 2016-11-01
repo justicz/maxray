@@ -83,6 +83,7 @@ struct Background {
     Vector3f color;
     Vector3f ambient_light;
     char *cube_map;
+    Vector3f ***skybox;
 };
 
 struct Scene {
@@ -92,6 +93,7 @@ struct Scene {
     struct Materials materials;
     struct Background background;
     bool shadows;
+    int bounces;
 };
 
 enum LIGHT {
@@ -116,6 +118,24 @@ enum MAT {
     MATERIAL,
     PHONG_MAT
 };
+
+enum SKYBOX {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    FRONT,
+    BACK
+};
+
+static const Vector3f UP_NORM    = {  0.0f, -1.0f,  0.0f };
+static const Vector3f DOWN_NORM  = {  0.0f,  1.0f,  0.0f };
+static const Vector3f RIGHT_NORM = { -1.0f,  0.0f,  0.0f };
+static const Vector3f LEFT_NORM  = {  1.0f,  0.0f,  0.0f };
+static const Vector3f FRONT_NORM = {  0.0f,  0.0f, -1.0f };
+static const Vector3f BACK_NORM  = {  0.0f,  0.0f,  1.0f };
+extern Vector3f NORMS[6];
+extern int FACES[6];
 
 extern struct Scene scene;
 extern int size[2]; 

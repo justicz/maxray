@@ -2,6 +2,7 @@ from ctypes import *
 from vector import *
 from matrix import *
 import objparser
+import skybox
 
 # We need to set these to inform the C program about
 # what kind of thing we are
@@ -107,9 +108,12 @@ class DirectionalLight(Light):
 class Background(Structure):
     _fields_ = [("color", Vector3f),
                 ("ambient_light", Vector3f),
-                ("cube_map", c_char_p)]
+                ("cube_map", c_char_p),
+                ("skybox", POINTER(POINTER(POINTER(Vector3f))))]
     def __init__(self):
-        pass
+        # things we don't want to be garbage collected
+        self.save = []
+        self.cube_map =  ""
 
     def set_color(self, color):
         self.color = color
@@ -117,8 +121,31 @@ class Background(Structure):
     def set_ambient_light(self, ambient_light):
         self.ambient_light = ambient_light
 
+    def set_prefix(self, prefix):
+        self.prefix = prefix
+
+    def set_size(self, size):
+        self.size = size
+
     def set_cube_map(self, cube_map):
+        print "Python: Loading skybox..."
         self.cube_map = cube_map
+        sbox = skybox.load(self.prefix, cube_map, self.size)
+        faces = (POINTER(POINTER(Vector3f)) * 6)()
+        for f in range(6):
+            im = sbox[f]
+            cols = (POINTER(Vector3f) * self.size[0])()
+            for i in range(self.size[0]):
+                col = (Vector3f * self.size[1])()
+                cols[i] = cast(pointer(col), POINTER(Vector3f))
+                for j in range(self.size[1]):
+                    x, y, z = im.getpixel((i, j))
+                    cols[i][j] = Vector3f(x/255.0, y/255.0, z/255.0)
+                self.save.append(col)
+            self.save.append(cols)
+            faces[f] = cast(pointer(cols), POINTER(POINTER(Vector3f)))
+        self.skybox = cast(pointer(faces), POINTER(POINTER(POINTER(Vector3f))))
+        print "...done"
 
 class SceneObject(Structure):
     def __init__(self):
@@ -339,10 +366,14 @@ class Scene(Structure):
                 ("lights", Lights),
                 ("materials", Materials),
                 ("background", Background),
-                ("shadows", c_bool)]
+                ("shadows", c_bool),
+                ("bounces", c_int)]
 
     def set_shadows(self, shadows):
         self.shadows = shadows
+
+    def set_bounces(self, bounces):
+        self.bounces = bounces
 
     def set_camera(self, camera):
         self.camera = camera

@@ -23,7 +23,7 @@ inline Vector3f vec3fhad(Vector3f a, Vector3f b)
     return v;
 }
 
-Vector3f vec3fsub(Vector3f a, Vector3f b)
+inline Vector3f vec3fsub(Vector3f a, Vector3f b)
 {
     Vector3f v;
     v.x = a.x - b.x;

@@ -12,7 +12,7 @@ void print_matrix4f(Matrix4f a)
     printf("]\n");
 }
 
-Matrix4f matrix4ftransposed(Matrix4f a)
+inline Matrix4f matrix4ftransposed(Matrix4f a)
 {
     Matrix4f out;
     out.m11 = a.m11; out.m12 = a.m21; out.m13 = a.m31; out.m14 = a.m41;
@@ -21,3 +21,4 @@ Matrix4f matrix4ftransposed(Matrix4f a)
     out.m41 = a.m14; out.m42 = a.m24; out.m43 = a.m34; out.m44 = a.m44;
     return out;
 }
+

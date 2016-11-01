@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser.add_argument('-output',  type=str, required=True)
     parser.add_argument('-normals', type=str)
     parser.add_argument('-shadows', action='store_true', default=False)
-    parser.add_argument('-bounces', type=int)
+    parser.add_argument('-bounces', type=int, default=0)
     parser.add_argument('-depth',   type=util.str_int, nargs=3)
     parser.add_argument('-size',    type=int, nargs=2, default=[200, 200])
     args = parser.parse_args()

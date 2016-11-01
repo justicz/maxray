@@ -9,6 +9,7 @@ class SceneParser:
         self.all_stack = []
         self.obj_stack = []
         self.cur_material_index = -1
+        self.prefix = os.path.dirname(os.path.abspath(self.filename))
 
         # Scene attributes passed to ray.so
         self.group = None
@@ -69,8 +70,7 @@ class SceneParser:
 
             # This is kind of a hack because meshes are at a path relative to the scene file
             if isinstance(o, TriangleMesh):
-                prefix = os.path.dirname(os.path.abspath(self.filename))
-                o.set_prefix(prefix)
+                o.set_prefix(self.prefix)
 
             # If we're a material, append ourselves to the materials object
             if isinstance(o, Material):
@@ -97,6 +97,8 @@ class SceneParser:
             if isinstance(o, Background):
                 assert(self.background == None)
                 self.background = o
+                o.set_prefix(self.prefix)
+                o.set_size(self.args.size)
 
             # Push this guy onto the object stack
             self.all_stack.append(o)
@@ -174,6 +176,7 @@ class SceneParser:
         s.set_background(self.background)
         s.set_group(self.group)
         s.set_shadows(self.args.shadows)
+        s.set_bounces(self.args.bounces)
 
         return s
 
