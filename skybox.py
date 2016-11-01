@@ -17,7 +17,7 @@ def load(prefix, cube_map, size):
     out = []
     for name in FACES:
         im = Image.open(path + name + ".png")
-        im.thumbnail(size)
+        im.thumbnail(size, Image.ANTIALIAS)
         im = im.convert('RGB')
         out.append(im)
     return out

@@ -12,23 +12,23 @@ Vector3f NORMS[6];
 int FACES[6];
 float PIXEL_SIDE;
 
-float minf(float a, float b) {
+inline float minf(float a, float b) {
     return a < b ? a : b;
 }
 
-float maxf(float a, float b) {
+inline float maxf(float a, float b) {
     return a > b ? a : b;
 }
 
-int mini(int a, int b) {
+inline int mini(int a, int b) {
     return a < b ? a : b;
 }
 
-int maxi(int a, int b) {
+inline int maxi(int a, int b) {
     return a > b ? a : b;
 }
 
-void camera_ray(struct Camera *camera, float x, float y, struct Ray *camray)
+inline void camera_ray(struct Camera *camera, float x, float y, struct Ray *camray)
 {
     assert(camera->kind == PERSPECTIVE_CAM);
     struct Ray ray;
@@ -40,7 +40,7 @@ void camera_ray(struct Camera *camera, float x, float y, struct Ray *camray)
     *camray = ray;
 }
 
-void transform_pos_by_matrix4f(Vector3f *pt, Matrix4f t)
+inline void transform_pos_by_matrix4f(Vector3f *pt, Matrix4f t)
 {
     Vector3f out;
     out.x = pt->x*t.m11 + pt->y*t.m12 + pt->z*t.m13 + t.m14;
@@ -49,7 +49,7 @@ void transform_pos_by_matrix4f(Vector3f *pt, Matrix4f t)
     *pt = out;
 }
 
-void transform_vec_by_matrix4f(Vector3f *vec, Matrix4f t)
+inline void transform_vec_by_matrix4f(Vector3f *vec, Matrix4f t)
 {
     Vector3f out;
     out.x = vec->x*t.m11 + vec->y*t.m12 + vec->z*t.m13;
@@ -58,14 +58,14 @@ void transform_vec_by_matrix4f(Vector3f *vec, Matrix4f t)
     *vec = out;
 }
 
-void transform_ray_by_matrix4f(struct Ray *ray, Matrix4f t)
+inline void transform_ray_by_matrix4f(struct Ray *ray, Matrix4f t)
 {
     transform_pos_by_matrix4f(&ray->o, t);
     transform_vec_by_matrix4f(&ray->dir, t);
     ray->dir = vec3fnorm(ray->dir);
 }
 
-void transform_hit_by_matrix4f(struct Hit *hit, struct Ray ray, Matrix4f t, Matrix4f ti)
+inline void transform_hit_by_matrix4f(struct Hit *hit, struct Ray ray, Matrix4f t, Matrix4f ti)
 {
     transform_pos_by_matrix4f(&hit->hit_coords, t);
     hit->dist = vec3fabs(vec3fsub(hit->hit_coords, ray.o));
@@ -74,12 +74,12 @@ void transform_hit_by_matrix4f(struct Hit *hit, struct Ray ray, Matrix4f t, Matr
     hit->norm = vec3fnorm(hit->norm);
 }
 
-bool has_skybox()
+inline bool has_skybox()
 {
     return scene.background.skybox != NULL;
 }
 
-Vector3f sample_skybox_at_pos(float x, float y, int face)
+inline Vector3f sample_skybox_at_pos(float x, float y, int face)
 {
     x += 0.5f;
     y += 0.5f;
@@ -130,7 +130,7 @@ Vector3f sample_skybox_at_pos(float x, float y, int face)
     return vec3fsum2(vec3fprodf(bhoriz, (1 - b)), vec3fprodf(thoriz, b));
 }
 
-Vector3f solve_skybox_hit(struct Ray ray)
+inline Vector3f solve_skybox_hit(struct Ray ray)
 {
     int best_face;
     float lowest_dot = INFINITY;
@@ -176,7 +176,7 @@ Vector3f solve_skybox_hit(struct Ray ray)
     return sample_skybox_at_pos(x, y, best_face);
 }
 
-void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct Hit *hit)
+inline void intersect_with_ray(struct SceneObject *scene_object, struct Ray ray, struct Hit *hit)
 {
     // Default values in case we haven't implemented this scene_object yet
     hit->hit_coords = ZERO_VEC3F;
@@ -422,7 +422,7 @@ void find_any_intersection(struct SceneObject *root, struct Ray ray, struct Hit 
     find_intersection(root, ray, hit, false);
 }
 
-bool free_shadow_path(struct Ray shadow_ray)
+inline bool free_shadow_path(struct Ray shadow_ray)
 {
     // Check if shadows are enabled
     if (!scene.shadows)
@@ -493,14 +493,14 @@ void normalize_framebuffer(Vector3f **framebuffer, int32_t w, int32_t h)
     }
 }
 
-struct Material *get_material_from_scene_object(struct SceneObject *scene_object)
+inline struct Material *get_material_from_scene_object(struct SceneObject *scene_object)
 {
     int32_t material_index = scene_object->material_index;
     assert(material_index < scene.materials.num_materials);
     return scene.materials.materials[material_index];
 }
 
-Vector3f shade(struct Hit *hit, struct Ray *ray, struct Intensity *intensity)
+inline Vector3f shade(struct Hit *hit, struct Ray *ray, struct Intensity *intensity)
 {
     struct Material *material = get_material_from_scene_object(hit->scene_object);
 
@@ -529,7 +529,7 @@ Vector3f shade(struct Hit *hit, struct Ray *ray, struct Intensity *intensity)
     return color;
 }
 
-Vector3f shade_ambient(struct Hit *hit)
+inline Vector3f shade_ambient(struct Hit *hit)
 {
     struct Material *material = get_material_from_scene_object(hit->scene_object);
     return vec3fhad(material->diffuse_color, scene.background.ambient_light);
