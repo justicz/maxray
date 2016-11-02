@@ -1,9 +1,9 @@
 CC = gcc
-CFLAGS = -fPIC -Wall -flto -Wextra -O3 -std=c99 -fopenmp
+CFLAGS = -fPIC -Wall -flto -Wextra -O3 -std=c99 -fopenmp -ffast-math
 LDFLAGS = -shared -fopenmp -flto
 TARGET_LIB = ray.so
 
-SRCS = ray.c load.c vec3f.c matrix4f.c
+SRCS = ray.c load.c vec3f.c matrix4f.c mathutil.c
 OBJS = $(SRCS:.c=.o)
 
 $(TARGET_LIB): $(OBJS)

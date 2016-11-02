@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "mathutil.h"
 #include "math.h"
 #include "load.h"
 #include "ray.h"
@@ -11,22 +12,6 @@
 Vector3f NORMS[6];
 int FACES[6];
 float PIXEL_SIDE;
-
-inline float minf(float a, float b) {
-    return a < b ? a : b;
-}
-
-inline float maxf(float a, float b) {
-    return a > b ? a : b;
-}
-
-inline int mini(int a, int b) {
-    return a < b ? a : b;
-}
-
-inline int maxi(int a, int b) {
-    return a > b ? a : b;
-}
 
 inline void camera_ray(struct Camera *camera, float x, float y, struct Ray *camray)
 {
@@ -38,40 +23,6 @@ inline void camera_ray(struct Camera *camera, float x, float y, struct Ray *camr
     ray.o = camera->center;
     ray.dir = vec3fnorm(vec3fsum3(a, b, c));
     *camray = ray;
-}
-
-inline void transform_pos_by_matrix4f(Vector3f *pt, Matrix4f t)
-{
-    Vector3f out;
-    out.x = pt->x*t.m11 + pt->y*t.m12 + pt->z*t.m13 + t.m14;
-    out.y = pt->x*t.m21 + pt->y*t.m22 + pt->z*t.m23 + t.m24;
-    out.z = pt->x*t.m31 + pt->y*t.m32 + pt->z*t.m33 + t.m34;
-    *pt = out;
-}
-
-inline void transform_vec_by_matrix4f(Vector3f *vec, Matrix4f t)
-{
-    Vector3f out;
-    out.x = vec->x*t.m11 + vec->y*t.m12 + vec->z*t.m13;
-    out.y = vec->x*t.m21 + vec->y*t.m22 + vec->z*t.m23;
-    out.z = vec->x*t.m31 + vec->y*t.m32 + vec->z*t.m33;
-    *vec = out;
-}
-
-inline void transform_ray_by_matrix4f(struct Ray *ray, Matrix4f t)
-{
-    transform_pos_by_matrix4f(&ray->o, t);
-    transform_vec_by_matrix4f(&ray->dir, t);
-    ray->dir = vec3fnorm(ray->dir);
-}
-
-inline void transform_hit_by_matrix4f(struct Hit *hit, struct Ray ray, Matrix4f t, Matrix4f ti)
-{
-    transform_pos_by_matrix4f(&hit->hit_coords, t);
-    hit->dist = vec3fabs(vec3fsub(hit->hit_coords, ray.o));
-    Matrix4f transposed = matrix4ftransposed(ti);
-    transform_vec_by_matrix4f(&hit->norm, transposed);
-    hit->norm = vec3fnorm(hit->norm);
 }
 
 inline bool has_skybox()
@@ -363,7 +314,6 @@ void precompute_smooth_normals(struct SceneObject *root)
     average_normals(root);
 }
 
-
 void find_intersection(struct SceneObject *root, struct Ray ray, struct Hit *hit, bool closest)
 {
     hit->dist = INFINITY;
@@ -515,9 +465,7 @@ inline Vector3f shade(struct Hit *hit, struct Ray *ray, struct Intensity *intens
     color = vec3fsum2(color, diffuse_color);
 
     // Specular part
-    //Vector3f eye_vec = vec3fnorm(vec3fsub(hit->hit_coords, scene.camera.center));
-    Vector3f eye_vec = ray->dir;
-    Vector3f ref_eye = vec3fsub(eye_vec, vec3fprodf(hit->norm, 2.0f*vec3fdot(eye_vec, hit->norm)));
+    Vector3f ref_eye = vec3fsub(ray->dir, vec3fprodf(hit->norm, 2.0f*vec3fdot(ray->dir, hit->norm)));
     dot = vec3fdot(ref_eye, intensity->dir);
     dot = dot > 0.0f ? dot : 0.0f;
     dot = pow(dot, material->shininess);
