@@ -34,7 +34,7 @@ void init_scene(struct Scene *sc)
 
 void set_size(int32_t w, int32_t h)
 {
-    printf("Got size %dpx x %dpx\n", w, h);
+    printf("C: Got size %dpx x %dpx\n", w, h);
     size[0] = w;
     size[1] = h;
 }
